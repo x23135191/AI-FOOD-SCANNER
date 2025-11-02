@@ -3,238 +3,126 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Food Finder — Smart Food Recognition (Demo)</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <title>FoodFinder — Image to Nearby Restaurants</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    :root{--primary:#2563eb;--primary-dark:#1e40af;--bg:#f9fafb;--card:#fff;--text:#111827;--muted:#6b7280;--radius:12px}
-    [data-theme="dark"]{--primary:#60a5fa;--primary-dark:#3b82f6;--bg:#0b1220;--card:#071126;--text:#e6eef8;--muted:#9aa9bf}
+    :root{--bg:#f6f8fb;--card:#ffffff;--muted:#69707a;--accent:#0b74de}
     *{box-sizing:border-box}
-    body{font-family:'Inter',sans-serif;margin:0;background:var(--bg);color:var(--text);transition:background .2s,color .2s}
-    header{background:linear-gradient(90deg,var(--primary),var(--primary-dark));color:white;padding:1.6rem 1rem;display:flex;align-items:center;gap:1rem;justify-content:space-between}
-    header .title{display:flex;flex-direction:column}
-    header h1{margin:0;font-size:1.25rem;font-weight:700}
-    header p{margin:0;font-size:.9rem;opacity:.95}
-    .toggles{display:flex;gap:.5rem;align-items:center}
-    main{max-width:980px;margin:2rem auto;padding:0 1rem}
-    .card{background:var(--card);border-radius:var(--radius);padding:1.5rem;box-shadow:0 8px 30px rgba(2,6,23,0.08)}
-    label{font-weight:600;margin-bottom:.5rem;display:block}
-    .fileInput{display:flex;gap:.75rem;align-items:center}
-    input[type=file]{flex:1;padding:.6rem;border-radius:10px;border:1px dashed rgba(0,0,0,0.06);background:transparent}
-    .controls{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:.75rem}
-    button{padding:.6rem 1rem;border-radius:10px;border:none;font-weight:600;cursor:pointer}
-    button.primary{background:var(--primary);color:white}
-    button.ghost{background:transparent;border:1px solid rgba(0,0,0,0.06)}
-    .previewWrap{display:flex;gap:1rem;align-items:flex-start;margin-top:1rem}
-    img.preview{max-width:320px;border-radius:10px;display:none}
-    .results{flex:1}
-    .resultBlock{margin-bottom:.75rem}
-    h3{margin:0 0 .5rem 0}
-    .muted{color:var(--muted)}
-
-    /* spinner */
-    .spinner{width:40px;height:40px;border-radius:50%;border:4px solid rgba(0,0,0,0.08);border-top-color:var(--primary);animation:spin 1s linear infinite;display:none}
-    @keyframes spin{to{transform:rotate(360deg)}}
-
-    /* small screens */
-    @media (max-width:640px){.previewWrap{flex-direction:column}.preview{max-width:100%}}
-
-    /* subtle card for results list */
-    .listCard{background:rgba(0,0,0,0.03);padding:.75rem;border-radius:8px}
-
-    footer{margin-top:1rem;color:var(--muted);font-size:.9rem;text-align:center}
-    .warning{background:#fff7ed;color:#92400e;padding:.6rem;border-radius:8px;margin-top:.75rem}
-    [data-theme="dark"] .warning{background:#3b2a0a;color:#ffddb1}
+    body{font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin:0; background:var(--bg); color:#102027}
+    header{background:linear-gradient(90deg,#ffffffcc, #f3f6fb); padding:18px 28px; display:flex; align-items:center; gap:18px; border-bottom:1px solid #e6eef6}
+    .brand{display:flex; align-items:center; gap:12px}
+    .logo{width:46px; height:46px; border-radius:10px; background:linear-gradient(135deg,var(--accent),#2bb673); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700}
+    .title{font-size:18px; font-weight:600}
+    .subtitle{font-size:12px; color:var(--muted)}
+    main{padding:24px; max-width:1200px; margin:24px auto; display:grid; grid-template-columns:420px 1fr; gap:20px}
+    .card{background:var(--card); border-radius:12px; box-shadow:0 6px 18px rgba(16,32,39,0.06); padding:18px}
+    .uploader{display:flex; flex-direction:column; gap:12px}
+    .dropzone{border:2px dashed #e3eefc; border-radius:12px; padding:22px; text-align:center; cursor:pointer}
+    .dropzone.drag{border-color:var(--accent); background:#f0f8ff}
+    .preview{width:100%; height:220px; object-fit:cover; border-radius:8px; background:#f4f6f8}
+    .controls{display:flex; gap:8px; margin-top:8px}
+    button{background:var(--accent); border:none; color:#fff; padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:600}
+    button.ghost{background:transparent; color:var(--accent); border:1px solid #ddeefc}
+    .results-list{margin-top:12px; display:flex; flex-direction:column; gap:10px}
+    .result{padding:10px; border-radius:8px; border:1px solid #f0f4f7}
+    #map{height:540px; border-radius:12px; overflow:hidden}
+    .places{display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; margin-top:12px}
+    .place-card{background:linear-gradient(180deg,#fff,#fbfdff); padding:12px; border-radius:10px; box-shadow:0 6px 14px rgba(16,32,39,0.04);}
+    .place-name{font-weight:700}
+    .place-meta{font-size:13px; color:var(--muted)}
+    footer{max-width:1200px;margin:8px auto 40px; color:var(--muted); font-size:13px}
+    @media (max-width:940px){main{grid-template-columns:1fr; padding:12px} #map{height:420px}}
   </style>
 </head>
 <body>
   <header>
-    <div class="title">
-      <h1>Food Finder — Demo</h1>
-      <p>Identify food from a photo • Get recipes • Find nearby restaurants</p>
-    </div>
-    <div class="toggles">
-      <div id="spinner" class="spinner" title="Loading"></div>
-      <label style="display:flex;align-items:center;gap:.5rem"><input id="darkToggle" type="checkbox">Dark</label>
+    <div class="brand">
+      <div class="logo">FF</div>
+      <div>
+        <div class="title">FoodFinder</div>
+        <div class="subtitle">Search meals from a photo • find nearby restaurants</div>
+      </div>
     </div>
   </header>
 
   <main>
-    <div class="card">
-      <label for="imageInput">Upload or take a photo</label>
-      <div class="fileInput">
-        <input id="imageInput" accept="image/*" type="file" capture="environment" />
-        <button id="clearBtn" class="ghost">Clear</button>
-      </div>
-
-      <div class="controls" style="margin-top:1rem">
-        <button id="identifyBtn" class="primary">Identify</button>
-        <button id="recipesBtn" class="ghost">Show Recipes</button>
-        <button id="nearbyBtn" class="ghost">Find Nearby Restaurants</button>
-      </div>
-
-      <div class="previewWrap">
-        <img id="preview" class="preview" alt="Preview image" />
-        <div class="results">
-          <h3>Results</h3>
-          <div id="labels" class="resultBlock muted">No image yet</div>
-          <div id="aiContent" class="resultBlock"></div>
-          <div id="places" class="resultBlock"></div>
+    <section class="card">
+      <h3>Upload an image</h3>
+      <div class="uploader">
+        <div id="dropzone" class="dropzone">
+          <div style="font-weight:600">Drag & drop a photo or click to browse</div>
+          <div style="font-size:13px; color:var(--muted); margin-top:6px">Try a clear food photo — pizza, sushi, burger, etc.</div>
+          <input id="fileInput" type="file" accept="image/*" style="display:none">
         </div>
+        <img id="preview" class="preview" alt="preview" src="" style="display:none">
+        <div class="controls">
+          <button id="analyzeBtn" disabled>Analyze Photo</button>
+          <button id="demoBtn" class="ghost">Demo Mode</button>
+          <button id="locateBtn" class="ghost">Use My Location</button>
+        </div>
+        <div id="status" style="font-size:13px; color:var(--muted); margin-top:8px">No image selected</div>
+        <div id="labels" class="results-list"></div>
       </div>
+      <div style="margin-top:20px">
+        <label for="apiKey">OpenAI API Key:</label>
+        <input id="apiKey" type="password" placeholder="Enter your OpenAI API key" style="width:100%;padding:8px;border-radius:8px;border:1px solid #ccc;">
+      </div>
+    </section>
 
-      <div class="warning"><strong>Demo only — insecure:</strong> This page runs API requests from the browser and uses client-side API keys. <em>Do not</em> use real production keys here. Keys shown as placeholders below are for demonstration; you must host a server proxy for production.</div>
-
-      <details style="margin-top:1rem">
-        <summary style="cursor:pointer">Demo API configuration (client-side placeholders)</summary>
-        <pre style="margin-top:.5rem;background:transparent;border-radius:8px;padding:.5rem">// Replace with your demo keys (unsafe in production)
-const OPENAI_KEY = 'YOUR_OPENAI_KEY';
-const GOOGLE_API_KEY = 'YOUR_GOOGLE_API_KEY';
-        </pre>
-      </details>
-
-      <footer>
-        <div class="muted">Note: Because this demo runs calls from the browser, some providers may reject requests due to CORS or key restrictions. For a stable production app, use server-side proxy endpoints.</div>
-      </footer>
-    </div>
+    <section>
+      <div class="card">
+        <h3>Nearby restaurants</h3>
+        <div id="map"></div>
+        <div id="places" class="places"></div>
+      </div>
+    </section>
   </main>
 
+  <footer>Use your OpenAI API key above for image recognition integration.</footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // ----------------- DEMO KEYS (unsafe) -----------------
-    const OPENAI_KEY = 'YOUR_OPENAI_KEY'; // e.g. sk-...
-    const GOOGLE_API_KEY = 'YOUR_GOOGLE_API_KEY'; // for Vision & Places
-    // -----------------------------------------------------
-
-    const imageInput = document.getElementById('imageInput');
+    const drop = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
     const preview = document.getElementById('preview');
-    const identifyBtn = document.getElementById('identifyBtn');
-    const recipesBtn = document.getElementById('recipesBtn');
-    const nearbyBtn = document.getElementById('nearbyBtn');
-    const clearBtn = document.getElementById('clearBtn');
-    const labelsEl = document.getElementById('labels');
-    const aiContentEl = document.getElementById('aiContent');
-    const placesEl = document.getElementById('places');
-    const spinner = document.getElementById('spinner');
-    const darkToggle = document.getElementById('darkToggle');
+    const status = document.getElementById('status');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const demoBtn = document.getElementById('demoBtn');
+    const locateBtn = document.getElementById('locateBtn');
+    const labelsDiv = document.getElementById('labels');
+    const apiKeyInput = document.getElementById('apiKey');
+    const map = L.map('map').setView([40.4168,-3.7038],12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-    let lastImageBase64 = null;
-    let lastIdentified = null;
+    let currentFile = null;
+    let userCoords = null;
+    const markersLayer = L.layerGroup().addTo(map);
 
-    // Dark mode toggle
-    darkToggle.addEventListener('change', (e) => {
-      if (e.target.checked) document.documentElement.setAttribute('data-theme','dark');
-      else document.documentElement.removeAttribute('data-theme');
-    });
+    drop.addEventListener('click',()=>fileInput.click());
+    drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('drag');});
+    drop.addEventListener('dragleave',()=>drop.classList.remove('drag'));
+    drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('drag');handleFile(e.dataTransfer.files[0]);});
+    fileInput.addEventListener('change',e=>handleFile(e.target.files[0]));
 
-    clearBtn.addEventListener('click', () => {
-      imageInput.value = '';
-      preview.src = '';
-      preview.style.display = 'none';
-      labelsEl.textContent = 'No image yet';
-      aiContentEl.textContent = '';
-      placesEl.textContent = '';
-      lastImageBase64 = null;
-      lastIdentified = null;
-    });
-
-    imageInput.addEventListener('change', async (e) => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      const dataUrl = await toDataUrl(file);
-      preview.src = dataUrl;
-      preview.style.display = 'block';
-      lastImageBase64 = dataUrl.split(',')[1];
-      labelsEl.textContent = 'Ready to identify.';
-      aiContentEl.textContent = '';
-      placesEl.textContent = '';
-    });
-
-    identifyBtn.addEventListener('click', async () => {
-      if (!lastImageBase64) return alert('Please upload an image first.');
-      labelsEl.innerHTML = '<em>Identifying…</em>';
-      showSpinner(true);
-      try {
-        const visionResp = await callGoogleVision(lastImageBase64);
-        const labels = (visionResp && visionResp.responses && visionResp.responses[0] && visionResp.responses[0].labelAnnotations)
-          ? visionResp.responses[0].labelAnnotations.map(l=>l.description)
-          : [];
-        lastIdentified = labels[0] || (visionResp.responses[0].textAnnotations && visionResp.responses[0].textAnnotations[0].description) || 'food';
-        labelsEl.innerHTML = '<strong>Detected:</strong> ' + (labels.length ? labels.join(', ') : lastIdentified);
-      } catch (err) {
-        labelsEl.innerHTML = '<strong>Error:</strong> ' + err.message;
-      } finally { showSpinner(false); }
-    });
-
-    recipesBtn.addEventListener('click', async () => {
-      const subject = lastIdentified || 'food';
-      aiContentEl.innerHTML = '<em>Fetching recipes…</em>';
-      showSpinner(true);
-      try {
-        const prompt = `You are a helpful chef. Provide 3 short recipes for: ${subject}. Return JSON: {recipes:[{title,ingredients,steps}]}`;
-        const openaiResp = await callOpenAI(prompt);
-        // Try to parse JSON out of the assistant content
-        const content = openaiResp.choices && openaiResp.choices[0] && openaiResp.choices[0].message && openaiResp.choices[0].message.content;
-        let parsed = null;
-        try { parsed = JSON.parse(content); } catch(e) {
-          // fallback: try to extract JSON substring
-          const m = content && content.match(/\{[\s\S]*\}/);
-          if (m) parsed = JSON.parse(m[0]);
-        }
-        if (parsed && parsed.recipes) {
-          aiContentEl.innerHTML = parsed.recipes.map(r=>`<div class="listCard"><strong>${escapeHtml(r.title)}</strong><div class="muted">Ingredients: ${escapeHtml((r.ingredients||[]).join(', '))}</div><ol>${(r.steps||[]).map(s=>`<li>${escapeHtml(s)}</li>`).join('')}</ol></div>`).join('');
-        } else {
-          aiContentEl.innerText = content || 'No structured recipes returned.';
-        }
-      } catch (err) {
-        aiContentEl.innerHTML = '<strong>Error:</strong> ' + err.message;
-      } finally { showSpinner(false); }
-    });
-
-    nearbyBtn.addEventListener('click', async () => {
-      const subject = encodeURIComponent(lastIdentified || 'food');
-      placesEl.innerHTML = '<em>Searching nearby restaurants…</em>';
-      if (!navigator.geolocation) return placesEl.innerHTML = '<strong>Geolocation not supported.</strong>';
-      showSpinner(true);
-      navigator.geolocation.getCurrentPosition(async pos => {
-        try {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=2500&keyword=${subject}&key=${GOOGLE_API_KEY}`;
-          // Note: Direct browser fetch to Google Places may be blocked by CORS. This demo attempts it, but in practice use a server proxy.
-          const resp = await fetch(url);
-          const json = await resp.json();
-          const places = (json.results||[]).slice(0,6);
-          if(!places.length) placesEl.innerHTML = '<em>No places found.</em>';
-          else placesEl.innerHTML = '<ul>' + places.map(p=>`<li><strong>${escapeHtml(p.name)}</strong> — ${escapeHtml(p.vicinity || '')} ${p.rating?`(⭐ ${p.rating})`:''}</li>`).join('') + '</ul>';
-        } catch (err) {
-          placesEl.innerHTML = `<strong>Error:</strong> ${err.message} — note: browser CORS may block this request.`;
-        } finally { showSpinner(false); }
-      }, err => { placesEl.innerHTML = `<strong>Location error:</strong> ${err.message}`; showSpinner(false); });
-    });
-
-    // ---------------- helper functions & API calls ----------------
-    function showSpinner(on){ spinner.style.display = on ? 'inline-block' : 'none'; }
-
-    function toDataUrl(file){ return new Promise((res,rej)=>{ const reader=new FileReader(); reader.onload=()=>res(reader.result); reader.onerror=rej; reader.readAsDataURL(file); }); }
-    function escapeHtml(s){ if(!s) return ''; return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[c]); }
-
-    async function callGoogleVision(imageBase64){
-      // Uses the Cloud Vision REST API (labelDetection + textDetection)
-      const endpoint = `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_API_KEY}`;
-      const body = { requests: [ { image: { content: imageBase64 }, features: [ { type: 'LABEL_DETECTION', maxResults: 6 }, { type: 'TEXT_DETECTION', maxResults: 1 } ] } ] };
-      const r = await fetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-      if(!r.ok) throw new Error('Vision API error: ' + r.status);
-      return await r.json();
+    function handleFile(file){
+      if(!file)return;
+      currentFile=file;
+      const url=URL.createObjectURL(file);
+      preview.src=url;preview.style.display='block';
+      status.textContent=`Selected: ${file.name}`;
+      analyzeBtn.disabled=false;
     }
 
-    async function callOpenAI(prompt){
-      // Calls the Chat Completions API directly from the browser (demo only)
-      const endpoint = 'https://api.openai.com/v1/chat/completions';
-      const body = { model: 'gpt-4o-mini', messages: [{role:'system',content:'You are a helpful assistant.'},{role:'user',content:prompt}], temperature:0.7, max_tokens:800 };
-      const r = await fetch(endpoint, { method:'POST', headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + OPENAI_KEY }, body: JSON.stringify(body) });
-      if(!r.ok){ const txt = await r.text(); throw new Error('OpenAI error: ' + r.status + ' — ' + txt); }
-      return await r.json();
+    async function recognizeImageWithOpenAI(file){
+      const apiKey=apiKeyInput.value.trim();
+      if(!apiKey){alert('Please enter your OpenAI API key first.');return {labels:[]};}
+      const formData=new FormData();
+      formData.append('file',file);
+      try{
+        const res=await fetch('https://api.openai.com/v1/images/embeddings',{method:'POST',headers:{'Authorization':`Bearer ${apiKey}`},body:formData});
+        const data=await res.json();
+        return data;
+      }catch(err){console.error('OpenAI request failed',err);return {labels:[]};}
     }
   </script>
 </body>
