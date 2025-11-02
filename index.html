@@ -1,156 +1,199 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Food Scanner 🍽️</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Food Finder — identify food, show recipes or nearby restaurants</title>
   <style>
-    body {
-      background: linear-gradient(135deg,#f8fafc,#eef2ff);
-      font-family:'Inter',sans-serif;
-    }
-    .fade-in { animation: fadeIn .5s ease-in-out; }
-    @keyframes fadeIn {
-      from {opacity:0;transform:translateY(10px);}
-      to {opacity:1;transform:translateY(0);}
-    }
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0;background:#f7f8fb;color:#111}
+    header{background:#0f172a;color:white;padding:1rem;text-align:center}
+    main{max-width:900px;margin:1.5rem auto;padding:1rem}
+    .card{background:white;border-radius:12px;padding:1rem;box-shadow:0 6px 18px rgba(2,6,23,0.08);}
+    .controls{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem}
+    button{padding:.6rem .9rem;border-radius:8px;border:1px solid #e6e9ef;background:#fff;cursor:pointer}
+    button.primary{background:#0b63ff;color:white;border:none}
+    img.preview{max-width:100%;border-radius:8px;margin-top:.75rem}
+    .results{margin-top:1rem}
+    pre{white-space:pre-wrap;word-break:break-word}
+    footer{font-size:.85rem;color:#555;margin-top:1rem;text-align:center}
   </style>
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen p-6">
-  <div class="bg-white shadow-2xl rounded-2xl p-8 w-full max-w-lg fade-in">
-    <h1 class="text-3xl font-bold text-center mb-4 text-gray-800">🍔 AI Food Scanner</h1>
-    <p class="text-center text-gray-500 mb-6">
-      Upload a food photo, let AI identify it, and get recipes or nearby restaurant ideas.
-    </p>
+<body>
+  <header>
+    <h1>Food Finder</h1>
+    <div style="font-size:.9rem;opacity:.9">Take or upload a photo, identify the food, then get recipes or nearby restaurants</div>
+  </header>
 
-    <!-- Upload -->
-    <label class="block mb-4">
-      <span class="text-gray-700 font-medium">Upload Image:</span>
-      <input type="file" id="imageInput" accept="image/*"
-             class="mt-2 block w-full border border-gray-300 p-2 rounded-lg" />
-    </label>
+  <main>
+    <div class="card">
+      <label for="imageInput">Choose or take a photo</label>
+      <input id="imageInput" accept="image/*" type="file" capture="environment" />
 
-    <!-- Action -->
-    <label class="block mb-4">
-      <span class="text-gray-700 font-medium">Choose Action:</span>
-      <select id="action" class="mt-2 block w-full border border-gray-300 p-2 rounded-lg">
-        <option value="recipes">Suggest Recipes</option>
-        <option value="restaurants">Find Nearby Restaurants</option>
-      </select>
-    </label>
+      <div class="controls">
+        <button id="identifyBtn" class="primary">Identify Food</button>
+        <button id="recipesBtn">Show Recipes</button>
+        <button id="nearbyBtn">Show Nearby Restaurants</button>
+      </div>
 
-    <!-- Analyze -->
-    <button id="analyzeBtn"
-            class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition duration-300">
-      🔍 Analyze Image
-    </button>
+      <img id="preview" class="preview" src="" alt="preview" style="display:none" />
 
-    <div id="results" class="mt-8 text-gray-800"></div>
-  </div>
+      <div class="results" id="results">
+        <h3>Results</h3>
+        <div id="labels"></div>
+        <div id="aiContent"></div>
+        <div id="places"></div>
+      </div>
 
-  <script type="module">
-    const resultsDiv = document.getElementById('results');
-    const analyzeBtn = document.getElementById('analyzeBtn');
+      <footer>
+        <div>Notes:</div>
+        <ul>
+          <li>This example uses <strong>Google Cloud Vision</strong> for image recognition (Google Lens doesn't provide an embeddable public API). Replace with Lens if/when Google exposes a supported SDK.</li>
+          <li>Keep API keys secret — call the providers from a server-side proxy. Do not embed private keys in client-side code for production.</li>
+        </ul>
+      </footer>
+    </div>
+  </main>
 
-    // Ask user for their own API key (safe for GitHub Pages)
-    let OPENAI_API_KEY = localStorage.getItem('openai_key');
-    if (!OPENAI_API_KEY) {
-      OPENAI_API_KEY = prompt("Enter your OpenAI API key (it will be stored locally):");
-      if (OPENAI_API_KEY) localStorage.setItem('openai_key', OPENAI_API_KEY);
-    }
+  <script>
+    // --------- CONFIG: replace these with your server endpoints or keys ----------
+    // For security, you should implement server endpoints that perform these requests
+    // serverVisionEndpoint: POST imageBase64 -> server will call Google Vision API using a server-stored API key
+    // serverOpenAiEndpoint: POST { prompt } -> server will call OpenAI using your API key
+    // serverPlacesEndpoint: server can optionally proxy Google Places API calls
+    const serverVisionEndpoint = '/api/vision'; // example server endpoint
+    const serverOpenAiEndpoint = '/api/openai';
+    const serverPlacesEndpoint = '/api/places';
+    // ---------------------------------------------------------------------------
 
-    analyzeBtn.addEventListener('click', async () => {
-      const fileInput = document.getElementById('imageInput');
-      const action = document.getElementById('action').value;
+    const imageInput = document.getElementById('imageInput');
+    const preview = document.getElementById('preview');
+    const identifyBtn = document.getElementById('identifyBtn');
+    const recipesBtn = document.getElementById('recipesBtn');
+    const nearbyBtn = document.getElementById('nearbyBtn');
+    const labelsEl = document.getElementById('labels');
+    const aiContentEl = document.getElementById('aiContent');
+    const placesEl = document.getElementById('places');
 
-      if (!fileInput.files[0]) {
-        alert("Please upload an image first.");
-        return;
-      }
+    let lastIdentified = null; // string label (eg "pizza")
+    let lastImageBase64 = null;
 
-      resultsDiv.innerHTML =
-        `<div class='text-center text-gray-500'><span class='animate-pulse'>🔎 Analyzing image...</span></div>`;
-
-      const base64 = await toBase64(fileInput.files[0]);
-      const foodName = await identifyFood(base64);
-
-      if (!foodName) {
-        resultsDiv.innerHTML = "❌ Couldn't identify food.";
-        return;
-      }
-
-      if (action === "recipes") displayRecipes(foodName, mockRecipes(foodName));
-      else displayRestaurants(foodName, mockRestaurants(foodName));
+    imageInput.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const dataUrl = await toDataUrl(file);
+      preview.src = dataUrl;
+      preview.style.display = 'block';
+      lastImageBase64 = dataUrl.split(',')[1];
+      labelsEl.innerHTML = '';
+      aiContentEl.innerHTML = '';
+      placesEl.innerHTML = '';
     });
 
-    const toBase64 = file =>
-      new Promise((res, rej) => {
+    identifyBtn.addEventListener('click', async () => {
+      if (!lastImageBase64) return alert('Please select or take a photo first.');
+      labelsEl.innerHTML = '<em>Identifying…</em>';
+
+      try {
+        // Send base64 to your server which calls Google Cloud Vision
+        const resp = await fetch(serverVisionEndpoint, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({imageBase64: lastImageBase64})
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        const data = await resp.json();
+        // Expected server response: { labels: ['pizza','cheese','tomato' ], text: '...optional OCR text...' }
+        const labels = data.labels || [];
+        lastIdentified = labels[0] || data.text || 'food';
+        labelsEl.innerHTML = '<strong>Best guesses:</strong> ' + labels.join(', ');
+      } catch (err) {
+        labelsEl.innerHTML = '<strong>Error identifying:</strong> ' + (err.message || err);
+      }
+    });
+
+    recipesBtn.addEventListener('click', async () => {
+      const subject = lastIdentified || 'food';
+      aiContentEl.innerHTML = '<em>Fetching recipes from OpenAI…</em>';
+      try {
+        // Ask your server to call OpenAI for recipes
+        const prompt = `You are a helpful cooking assistant. Given the detected food label: "${subject}", return 3 concise recipe suggestions with a short ingredients list and 3-step method for each. Output JSON: {recipes:[{title,ingredients,steps}]}`;
+        const resp = await fetch(serverOpenAiEndpoint, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({prompt})
+        });
+        if(!resp.ok) throw new Error(await resp.text());
+        const json = await resp.json();
+        // Server should forward the parsed JSON from OpenAI or return structured JSON
+        const recipes = json.recipes || [];
+        if(!recipes.length) aiContentEl.innerHTML = '<em>No recipe suggestions returned.</em>';
+        else {
+          aiContentEl.innerHTML = recipes.map(r => `\n<h4>${escapeHtml(r.title)}</h4>\n<strong>Ingredients:</strong><br>${escapeHtml(r.ingredients.join(', '))}<br><strong>Steps:</strong><ol>${r.steps.map(s=>`<li>${escapeHtml(s)}</li>`).join('')}</ol>`).join('\n');
+        }
+      } catch (err) {
+        aiContentEl.innerHTML = '<strong>Error:</strong> ' + (err.message || err);
+      }
+    });
+
+    nearbyBtn.addEventListener('click', async () => {
+      const subject = lastIdentified || 'food';
+      placesEl.innerHTML = '<em>Finding nearby restaurants…</em>';
+      if (!navigator.geolocation) return placesEl.innerHTML = '<strong>Geolocation unavailable in your browser.</strong>';
+      navigator.geolocation.getCurrentPosition(async pos => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        try {
+          // serverPlacesEndpoint should accept {lat,lng,keyword}
+          const resp = await fetch(serverPlacesEndpoint, {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({lat,lng,keyword: subject})
+          });
+          if(!resp.ok) throw new Error(await resp.text());
+          const places = await resp.json();
+          // Expected: [{name, address, rating, url}, ...]
+          if(!places.length) placesEl.innerHTML = '<em>No nearby places found.</em>';
+          else placesEl.innerHTML = '<ul>' + places.map(p=>`<li><strong>${escapeHtml(p.name)}</strong> — ${escapeHtml(p.address || '')} ${p.rating?`(⭐ ${p.rating})`:''}</li>`).join('') + '</ul>';
+        } catch (err) {
+          placesEl.innerHTML = '<strong>Error:</strong> ' + (err.message || err);
+        }
+      }, err => {
+        placesEl.innerHTML = '<strong>Geolocation error:</strong> ' + err.message;
+      });
+    });
+
+    // ---------------- helper functions ----------------
+    function toDataUrl(file){
+      return new Promise((res,rej)=>{
         const reader = new FileReader();
-        reader.onload = () => res(reader.result.split(',')[1]);
-        reader.onerror = err => rej(err);
+        reader.onload = ()=>res(reader.result);
+        reader.onerror = rej;
         reader.readAsDataURL(file);
       });
-
-    async function identifyFood(base64Image) {
-      try {
-        const res = await fetch("https://api.openai.com/v1/responses", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${OPENAI_API_KEY}`
-          },
-          body: JSON.stringify({
-            model: "gpt-4.1-mini",
-            input: [{
-              role: "user",
-              content: [
-                { type: "input_text", text: "Identify the food in this image. Respond with only the food name." },
-                { type: "input_image", image_base64: base64Image }
-              ]
-            }]
-          })
-        });
-        const data = await res.json();
-        return data.output_text?.trim() || null;
-      } catch (err) {
-        console.error(err);
-        return null;
-      }
     }
 
-    const mockRecipes = food => [
-      { title: `${food} Supreme`, image: "https://via.placeholder.com/300" },
-      { title: `${food} Delight`, image: "https://via.placeholder.com/300" },
-    ];
-    const mockRestaurants = food => [
-      { name: `${food} Bistro`, address: "45 King St" },
-      { name: `House of ${food}`, address: "102 Market Lane" },
-    ];
-
-    function displayRecipes(food, recipes) {
-      resultsDiv.innerHTML = `
-        <h2 class="text-xl font-semibold mb-3">🍳 Recipes for ${food}:</h2>
-        <div class="grid gap-4">
-          ${recipes.map(r => `
-            <div class="border rounded-lg p-4 shadow-sm hover:shadow-md transition">
-              <h3 class="font-bold text-lg">${r.title}</h3>
-              <img src="${r.image}" alt="${r.title}" class="rounded mt-2 w-full" />
-            </div>`).join('')}
-        </div>`;
+    function escapeHtml(s){
+      if(!s) return '';
+      return s.replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[c]);
     }
 
-    function displayRestaurants(food, restaurants) {
-      resultsDiv.innerHTML = `
-        <h2 class="text-xl font-semibold mb-3">🍴 Restaurants serving ${food} nearby:</h2>
-        <div class="space-y-3">
-          ${restaurants.map(r => `
-            <div class="border p-4 rounded-lg shadow-sm hover:shadow-md transition">
-              <h3 class="font-bold text-lg">${r.name}</h3>
-              <p class="text-gray-500">${r.address}</p>
-            </div>`).join('')}
-        </div>`;
-    }
+    // ---------------- Example server-side behavior (for your reference) ----------------
+    /*
+      Server endpoint: POST /api/vision
+      Body: { imageBase64 }
+      Server should call Google Cloud Vision API: POST https://vision.googleapis.com/v1/images:annotate?key=YOUR_KEY
+      with body:
+        { requests: [ { image: { content: imageBase64 }, features: [ { type: "LABEL_DETECTION", maxResults: 6 }, { type: "OBJECT_LOCALIZATION", maxResults: 5 } ] } ] }
+      Then extract labels and return { labels: ["pizza", "cheese"], text: "..." }
+
+      Server endpoint: POST /api/openai
+      Body: { prompt }
+      Server should call OpenAI's chat completions or responses endpoint with your API key, then return structured JSON.
+
+      Server endpoint: POST /api/places
+      Body: { lat, lng, keyword }
+      Server should call Google Places Nearby Search or Text Search using your server API key and return a reduced set of fields to the client.
+    */
   </script>
 </body>
 </html>
