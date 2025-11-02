@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Food Scanner 🍽️</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg,#f8fafc,#eef2ff);
+      font-family:'Inter',sans-serif;
+    }
+    .fade-in { animation: fadeIn .5s ease-in-out; }
+    @keyframes fadeIn {
+      from {opacity:0;transform:translateY(10px);}
+      to {opacity:1;transform:translateY(0);}
+    }
+  </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-6">
+  <div class="bg-white shadow-2xl rounded-2xl p-8 w-full max-w-lg fade-in">
+    <h1 class="text-3xl font-bold text-center mb-4 text-gray-800">🍔 AI Food Scanner</h1>
+    <p class="text-center text-gray-500 mb-6">
+      Upload a food photo, let AI identify it, and get recipes or nearby restaurant ideas.
+    </p>
+
+    <!-- Upload -->
+    <label class="block mb-4">
+      <span class="text-gray-700 font-medium">Upload Image:</span>
+      <input type="file" id="imageInput" accept="image/*"
+             class="mt-2 block w-full border border-gray-300 p-2 rounded-lg" />
+    </label>
+
+    <!-- Action -->
+    <label class="block mb-4">
+      <span class="text-gray-700 font-medium">Choose Action:</span>
+      <select id="action" class="mt-2 block w-full border border-gray-300 p-2 rounded-lg">
+        <option value="recipes">Suggest Recipes</option>
+        <option value="restaurants">Find Nearby Restaurants</option>
+      </select>
+    </label>
+
+    <!-- Analyze -->
+    <button id="analyzeBtn"
+            class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition duration-300">
+      🔍 Analyze Image
+    </button>
+
+    <div id="results" class="mt-8 text-gray-800"></div>
+  </div>
+
+  <script type="module">
+    const resultsDiv = document.getElementById('results');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+
+    // Ask user for their own API key (safe for GitHub Pages)
+    let OPENAI_API_KEY = localStorage.getItem('openai_key');
+    if (!OPENAI_API_KEY) {
+      OPENAI_API_KEY = prompt("Enter your OpenAI API key (it will be stored locally):");
+      if (OPENAI_API_KEY) localStorage.setItem('openai_key', OPENAI_API_KEY);
+    }
+
+    analyzeBtn.addEventListener('click', async () => {
+      const fileInput = document.getElementById('imageInput');
+      const action = document.getElementById('action').value;
+
+      if (!fileInput.files[0]) {
+        alert("Please upload an image first.");
+        return;
+      }
+
+      resultsDiv.innerHTML =
+        `<div class='text-center text-gray-500'><span class='animate-pulse'>🔎 Analyzing image...</span></div>`;
+
+      const base64 = await toBase64(fileInput.files[0]);
+      const foodName = await identifyFood(base64);
+
+      if (!foodName) {
+        resultsDiv.innerHTML = "❌ Couldn't identify food.";
+        return;
+      }
+
+      if (action === "recipes") displayRecipes(foodName, mockRecipes(foodName));
+      else displayRestaurants(foodName, mockRestaurants(foodName));
+    });
+
+    const toBase64 = file =>
+      new Promise((res, rej) => {
+        const reader = new FileReader();
+        reader.onload = () => res(reader.result.split(',')[1]);
+        reader.onerror = err => rej(err);
+        reader.readAsDataURL(file);
+      });
+
+    async function identifyFood(base64Image) {
+      try {
+        const res = await fetch("https://api.openai.com/v1/responses", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${OPENAI_API_KEY}`
+          },
+          body: JSON.stringify({
+            model: "gpt-4.1-mini",
+            input: [{
+              role: "user",
+              content: [
+                { type: "input_text", text: "Identify the food in this image. Respond with only the food name." },
+                { type: "input_image", image_base64: base64Image }
+              ]
+            }]
+          })
+        });
+        const data = await res.json();
+        return data.output_text?.trim() || null;
+      } catch (err) {
+        console.error(err);
+        return null;
+      }
+    }
+
+    const mockRecipes = food => [
+      { title: `${food} Supreme`, image: "https://via.placeholder.com/300" },
+      { title: `${food} Delight`, image: "https://via.placeholder.com/300" },
+    ];
+    const mockRestaurants = food => [
+      { name: `${food} Bistro`, address: "45 King St" },
+      { name: `House of ${food}`, address: "102 Market Lane" },
+    ];
+
+    function displayRecipes(food, recipes) {
+      resultsDiv.innerHTML = `
+        <h2 class="text-xl font-semibold mb-3">🍳 Recipes for ${food}:</h2>
+        <div class="grid gap-4">
+          ${recipes.map(r => `
+            <div class="border rounded-lg p-4 shadow-sm hover:shadow-md transition">
+              <h3 class="font-bold text-lg">${r.title}</h3>
+              <img src="${r.image}" alt="${r.title}" class="rounded mt-2 w-full" />
+            </div>`).join('')}
+        </div>`;
+    }
+
+    function displayRestaurants(food, restaurants) {
+      resultsDiv.innerHTML = `
+        <h2 class="text-xl font-semibold mb-3">🍴 Restaurants serving ${food} nearby:</h2>
+        <div class="space-y-3">
+          ${restaurants.map(r => `
+            <div class="border p-4 rounded-lg shadow-sm hover:shadow-md transition">
+              <h3 class="font-bold text-lg">${r.name}</h3>
+              <p class="text-gray-500">${r.address}</p>
+            </div>`).join('')}
+        </div>`;
+    }
+  </script>
+</body>
+</html>
