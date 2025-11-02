@@ -3,79 +3,140 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Food Finder — identify food, show recipes or nearby restaurants</title>
+  <title>Food Finder — Smart Food Recognition (Demo)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0;background:#f7f8fb;color:#111}
-    header{background:#0f172a;color:white;padding:1rem;text-align:center}
-    main{max-width:900px;margin:1.5rem auto;padding:1rem}
-    .card{background:white;border-radius:12px;padding:1rem;box-shadow:0 6px 18px rgba(2,6,23,0.08);}
-    .controls{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem}
-    button{padding:.6rem .9rem;border-radius:8px;border:1px solid #e6e9ef;background:#fff;cursor:pointer}
-    button.primary{background:#0b63ff;color:white;border:none}
-    img.preview{max-width:100%;border-radius:8px;margin-top:.75rem}
-    .results{margin-top:1rem}
-    pre{white-space:pre-wrap;word-break:break-word}
-    footer{font-size:.85rem;color:#555;margin-top:1rem;text-align:center}
+    :root{--primary:#2563eb;--primary-dark:#1e40af;--bg:#f9fafb;--card:#fff;--text:#111827;--muted:#6b7280;--radius:12px}
+    [data-theme="dark"]{--primary:#60a5fa;--primary-dark:#3b82f6;--bg:#0b1220;--card:#071126;--text:#e6eef8;--muted:#9aa9bf}
+    *{box-sizing:border-box}
+    body{font-family:'Inter',sans-serif;margin:0;background:var(--bg);color:var(--text);transition:background .2s,color .2s}
+    header{background:linear-gradient(90deg,var(--primary),var(--primary-dark));color:white;padding:1.6rem 1rem;display:flex;align-items:center;gap:1rem;justify-content:space-between}
+    header .title{display:flex;flex-direction:column}
+    header h1{margin:0;font-size:1.25rem;font-weight:700}
+    header p{margin:0;font-size:.9rem;opacity:.95}
+    .toggles{display:flex;gap:.5rem;align-items:center}
+    main{max-width:980px;margin:2rem auto;padding:0 1rem}
+    .card{background:var(--card);border-radius:var(--radius);padding:1.5rem;box-shadow:0 8px 30px rgba(2,6,23,0.08)}
+    label{font-weight:600;margin-bottom:.5rem;display:block}
+    .fileInput{display:flex;gap:.75rem;align-items:center}
+    input[type=file]{flex:1;padding:.6rem;border-radius:10px;border:1px dashed rgba(0,0,0,0.06);background:transparent}
+    .controls{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:.75rem}
+    button{padding:.6rem 1rem;border-radius:10px;border:none;font-weight:600;cursor:pointer}
+    button.primary{background:var(--primary);color:white}
+    button.ghost{background:transparent;border:1px solid rgba(0,0,0,0.06)}
+    .previewWrap{display:flex;gap:1rem;align-items:flex-start;margin-top:1rem}
+    img.preview{max-width:320px;border-radius:10px;display:none}
+    .results{flex:1}
+    .resultBlock{margin-bottom:.75rem}
+    h3{margin:0 0 .5rem 0}
+    .muted{color:var(--muted)}
+
+    /* spinner */
+    .spinner{width:40px;height:40px;border-radius:50%;border:4px solid rgba(0,0,0,0.08);border-top-color:var(--primary);animation:spin 1s linear infinite;display:none}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* small screens */
+    @media (max-width:640px){.previewWrap{flex-direction:column}.preview{max-width:100%}}
+
+    /* subtle card for results list */
+    .listCard{background:rgba(0,0,0,0.03);padding:.75rem;border-radius:8px}
+
+    footer{margin-top:1rem;color:var(--muted);font-size:.9rem;text-align:center}
+    .warning{background:#fff7ed;color:#92400e;padding:.6rem;border-radius:8px;margin-top:.75rem}
+    [data-theme="dark"] .warning{background:#3b2a0a;color:#ffddb1}
   </style>
 </head>
 <body>
   <header>
-    <h1>Food Finder</h1>
-    <div style="font-size:.9rem;opacity:.9">Take or upload a photo, identify the food, then get recipes or nearby restaurants</div>
+    <div class="title">
+      <h1>Food Finder — Demo</h1>
+      <p>Identify food from a photo • Get recipes • Find nearby restaurants</p>
+    </div>
+    <div class="toggles">
+      <div id="spinner" class="spinner" title="Loading"></div>
+      <label style="display:flex;align-items:center;gap:.5rem"><input id="darkToggle" type="checkbox">Dark</label>
+    </div>
   </header>
 
   <main>
     <div class="card">
-      <label for="imageInput">Choose or take a photo</label>
-      <input id="imageInput" accept="image/*" type="file" capture="environment" />
-
-      <div class="controls">
-        <button id="identifyBtn" class="primary">Identify Food</button>
-        <button id="recipesBtn">Show Recipes</button>
-        <button id="nearbyBtn">Show Nearby Restaurants</button>
+      <label for="imageInput">Upload or take a photo</label>
+      <div class="fileInput">
+        <input id="imageInput" accept="image/*" type="file" capture="environment" />
+        <button id="clearBtn" class="ghost">Clear</button>
       </div>
 
-      <img id="preview" class="preview" src="" alt="preview" style="display:none" />
-
-      <div class="results" id="results">
-        <h3>Results</h3>
-        <div id="labels"></div>
-        <div id="aiContent"></div>
-        <div id="places"></div>
+      <div class="controls" style="margin-top:1rem">
+        <button id="identifyBtn" class="primary">Identify</button>
+        <button id="recipesBtn" class="ghost">Show Recipes</button>
+        <button id="nearbyBtn" class="ghost">Find Nearby Restaurants</button>
       </div>
+
+      <div class="previewWrap">
+        <img id="preview" class="preview" alt="Preview image" />
+        <div class="results">
+          <h3>Results</h3>
+          <div id="labels" class="resultBlock muted">No image yet</div>
+          <div id="aiContent" class="resultBlock"></div>
+          <div id="places" class="resultBlock"></div>
+        </div>
+      </div>
+
+      <div class="warning"><strong>Demo only — insecure:</strong> This page runs API requests from the browser and uses client-side API keys. <em>Do not</em> use real production keys here. Keys shown as placeholders below are for demonstration; you must host a server proxy for production.</div>
+
+      <details style="margin-top:1rem">
+        <summary style="cursor:pointer">Demo API configuration (client-side placeholders)</summary>
+        <pre style="margin-top:.5rem;background:transparent;border-radius:8px;padding:.5rem">// Replace with your demo keys (unsafe in production)
+const OPENAI_KEY = 'YOUR_OPENAI_KEY';
+const GOOGLE_API_KEY = 'YOUR_GOOGLE_API_KEY';
+        </pre>
+      </details>
 
       <footer>
-        <div>Notes:</div>
-        <ul>
-          <li>This example uses <strong>Google Cloud Vision</strong> for image recognition (Google Lens doesn't provide an embeddable public API). Replace with Lens if/when Google exposes a supported SDK.</li>
-          <li>Keep API keys secret — call the providers from a server-side proxy. Do not embed private keys in client-side code for production.</li>
-        </ul>
+        <div class="muted">Note: Because this demo runs calls from the browser, some providers may reject requests due to CORS or key restrictions. For a stable production app, use server-side proxy endpoints.</div>
       </footer>
     </div>
   </main>
 
   <script>
-    // --------- CONFIG: replace these with your server endpoints or keys ----------
-    // For security, you should implement server endpoints that perform these requests
-    // serverVisionEndpoint: POST imageBase64 -> server will call Google Vision API using a server-stored API key
-    // serverOpenAiEndpoint: POST { prompt } -> server will call OpenAI using your API key
-    // serverPlacesEndpoint: server can optionally proxy Google Places API calls
-    const serverVisionEndpoint = '/api/vision'; // example server endpoint
-    const serverOpenAiEndpoint = '/api/openai';
-    const serverPlacesEndpoint = '/api/places';
-    // ---------------------------------------------------------------------------
+    // ----------------- DEMO KEYS (unsafe) -----------------
+    const OPENAI_KEY = 'YOUR_OPENAI_KEY'; // e.g. sk-...
+    const GOOGLE_API_KEY = 'YOUR_GOOGLE_API_KEY'; // for Vision & Places
+    // -----------------------------------------------------
 
     const imageInput = document.getElementById('imageInput');
     const preview = document.getElementById('preview');
     const identifyBtn = document.getElementById('identifyBtn');
     const recipesBtn = document.getElementById('recipesBtn');
     const nearbyBtn = document.getElementById('nearbyBtn');
+    const clearBtn = document.getElementById('clearBtn');
     const labelsEl = document.getElementById('labels');
     const aiContentEl = document.getElementById('aiContent');
     const placesEl = document.getElementById('places');
+    const spinner = document.getElementById('spinner');
+    const darkToggle = document.getElementById('darkToggle');
 
-    let lastIdentified = null; // string label (eg "pizza")
     let lastImageBase64 = null;
+    let lastIdentified = null;
+
+    // Dark mode toggle
+    darkToggle.addEventListener('change', (e) => {
+      if (e.target.checked) document.documentElement.setAttribute('data-theme','dark');
+      else document.documentElement.removeAttribute('data-theme');
+    });
+
+    clearBtn.addEventListener('click', () => {
+      imageInput.value = '';
+      preview.src = '';
+      preview.style.display = 'none';
+      labelsEl.textContent = 'No image yet';
+      aiContentEl.textContent = '';
+      placesEl.textContent = '';
+      lastImageBase64 = null;
+      lastIdentified = null;
+    });
 
     imageInput.addEventListener('change', async (e) => {
       const file = e.target.files && e.target.files[0];
@@ -84,117 +145,97 @@
       preview.src = dataUrl;
       preview.style.display = 'block';
       lastImageBase64 = dataUrl.split(',')[1];
-      labelsEl.innerHTML = '';
-      aiContentEl.innerHTML = '';
-      placesEl.innerHTML = '';
+      labelsEl.textContent = 'Ready to identify.';
+      aiContentEl.textContent = '';
+      placesEl.textContent = '';
     });
 
     identifyBtn.addEventListener('click', async () => {
-      if (!lastImageBase64) return alert('Please select or take a photo first.');
+      if (!lastImageBase64) return alert('Please upload an image first.');
       labelsEl.innerHTML = '<em>Identifying…</em>';
-
+      showSpinner(true);
       try {
-        // Send base64 to your server which calls Google Cloud Vision
-        const resp = await fetch(serverVisionEndpoint, {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({imageBase64: lastImageBase64})
-        });
-        if (!resp.ok) throw new Error(await resp.text());
-        const data = await resp.json();
-        // Expected server response: { labels: ['pizza','cheese','tomato' ], text: '...optional OCR text...' }
-        const labels = data.labels || [];
-        lastIdentified = labels[0] || data.text || 'food';
-        labelsEl.innerHTML = '<strong>Best guesses:</strong> ' + labels.join(', ');
+        const visionResp = await callGoogleVision(lastImageBase64);
+        const labels = (visionResp && visionResp.responses && visionResp.responses[0] && visionResp.responses[0].labelAnnotations)
+          ? visionResp.responses[0].labelAnnotations.map(l=>l.description)
+          : [];
+        lastIdentified = labels[0] || (visionResp.responses[0].textAnnotations && visionResp.responses[0].textAnnotations[0].description) || 'food';
+        labelsEl.innerHTML = '<strong>Detected:</strong> ' + (labels.length ? labels.join(', ') : lastIdentified);
       } catch (err) {
-        labelsEl.innerHTML = '<strong>Error identifying:</strong> ' + (err.message || err);
-      }
+        labelsEl.innerHTML = '<strong>Error:</strong> ' + err.message;
+      } finally { showSpinner(false); }
     });
 
     recipesBtn.addEventListener('click', async () => {
       const subject = lastIdentified || 'food';
-      aiContentEl.innerHTML = '<em>Fetching recipes from OpenAI…</em>';
+      aiContentEl.innerHTML = '<em>Fetching recipes…</em>';
+      showSpinner(true);
       try {
-        // Ask your server to call OpenAI for recipes
-        const prompt = `You are a helpful cooking assistant. Given the detected food label: "${subject}", return 3 concise recipe suggestions with a short ingredients list and 3-step method for each. Output JSON: {recipes:[{title,ingredients,steps}]}`;
-        const resp = await fetch(serverOpenAiEndpoint, {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({prompt})
-        });
-        if(!resp.ok) throw new Error(await resp.text());
-        const json = await resp.json();
-        // Server should forward the parsed JSON from OpenAI or return structured JSON
-        const recipes = json.recipes || [];
-        if(!recipes.length) aiContentEl.innerHTML = '<em>No recipe suggestions returned.</em>';
-        else {
-          aiContentEl.innerHTML = recipes.map(r => `\n<h4>${escapeHtml(r.title)}</h4>\n<strong>Ingredients:</strong><br>${escapeHtml(r.ingredients.join(', '))}<br><strong>Steps:</strong><ol>${r.steps.map(s=>`<li>${escapeHtml(s)}</li>`).join('')}</ol>`).join('\n');
+        const prompt = `You are a helpful chef. Provide 3 short recipes for: ${subject}. Return JSON: {recipes:[{title,ingredients,steps}]}`;
+        const openaiResp = await callOpenAI(prompt);
+        // Try to parse JSON out of the assistant content
+        const content = openaiResp.choices && openaiResp.choices[0] && openaiResp.choices[0].message && openaiResp.choices[0].message.content;
+        let parsed = null;
+        try { parsed = JSON.parse(content); } catch(e) {
+          // fallback: try to extract JSON substring
+          const m = content && content.match(/\{[\s\S]*\}/);
+          if (m) parsed = JSON.parse(m[0]);
+        }
+        if (parsed && parsed.recipes) {
+          aiContentEl.innerHTML = parsed.recipes.map(r=>`<div class="listCard"><strong>${escapeHtml(r.title)}</strong><div class="muted">Ingredients: ${escapeHtml((r.ingredients||[]).join(', '))}</div><ol>${(r.steps||[]).map(s=>`<li>${escapeHtml(s)}</li>`).join('')}</ol></div>`).join('');
+        } else {
+          aiContentEl.innerText = content || 'No structured recipes returned.';
         }
       } catch (err) {
-        aiContentEl.innerHTML = '<strong>Error:</strong> ' + (err.message || err);
-      }
+        aiContentEl.innerHTML = '<strong>Error:</strong> ' + err.message;
+      } finally { showSpinner(false); }
     });
 
     nearbyBtn.addEventListener('click', async () => {
-      const subject = lastIdentified || 'food';
-      placesEl.innerHTML = '<em>Finding nearby restaurants…</em>';
-      if (!navigator.geolocation) return placesEl.innerHTML = '<strong>Geolocation unavailable in your browser.</strong>';
+      const subject = encodeURIComponent(lastIdentified || 'food');
+      placesEl.innerHTML = '<em>Searching nearby restaurants…</em>';
+      if (!navigator.geolocation) return placesEl.innerHTML = '<strong>Geolocation not supported.</strong>';
+      showSpinner(true);
       navigator.geolocation.getCurrentPosition(async pos => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
         try {
-          // serverPlacesEndpoint should accept {lat,lng,keyword}
-          const resp = await fetch(serverPlacesEndpoint, {
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({lat,lng,keyword: subject})
-          });
-          if(!resp.ok) throw new Error(await resp.text());
-          const places = await resp.json();
-          // Expected: [{name, address, rating, url}, ...]
-          if(!places.length) placesEl.innerHTML = '<em>No nearby places found.</em>';
-          else placesEl.innerHTML = '<ul>' + places.map(p=>`<li><strong>${escapeHtml(p.name)}</strong> — ${escapeHtml(p.address || '')} ${p.rating?`(⭐ ${p.rating})`:''}</li>`).join('') + '</ul>';
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=2500&keyword=${subject}&key=${GOOGLE_API_KEY}`;
+          // Note: Direct browser fetch to Google Places may be blocked by CORS. This demo attempts it, but in practice use a server proxy.
+          const resp = await fetch(url);
+          const json = await resp.json();
+          const places = (json.results||[]).slice(0,6);
+          if(!places.length) placesEl.innerHTML = '<em>No places found.</em>';
+          else placesEl.innerHTML = '<ul>' + places.map(p=>`<li><strong>${escapeHtml(p.name)}</strong> — ${escapeHtml(p.vicinity || '')} ${p.rating?`(⭐ ${p.rating})`:''}</li>`).join('') + '</ul>';
         } catch (err) {
-          placesEl.innerHTML = '<strong>Error:</strong> ' + (err.message || err);
-        }
-      }, err => {
-        placesEl.innerHTML = '<strong>Geolocation error:</strong> ' + err.message;
-      });
+          placesEl.innerHTML = `<strong>Error:</strong> ${err.message} — note: browser CORS may block this request.`;
+        } finally { showSpinner(false); }
+      }, err => { placesEl.innerHTML = `<strong>Location error:</strong> ${err.message}`; showSpinner(false); });
     });
 
-    // ---------------- helper functions ----------------
-    function toDataUrl(file){
-      return new Promise((res,rej)=>{
-        const reader = new FileReader();
-        reader.onload = ()=>res(reader.result);
-        reader.onerror = rej;
-        reader.readAsDataURL(file);
-      });
+    // ---------------- helper functions & API calls ----------------
+    function showSpinner(on){ spinner.style.display = on ? 'inline-block' : 'none'; }
+
+    function toDataUrl(file){ return new Promise((res,rej)=>{ const reader=new FileReader(); reader.onload=()=>res(reader.result); reader.onerror=rej; reader.readAsDataURL(file); }); }
+    function escapeHtml(s){ if(!s) return ''; return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[c]); }
+
+    async function callGoogleVision(imageBase64){
+      // Uses the Cloud Vision REST API (labelDetection + textDetection)
+      const endpoint = `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_API_KEY}`;
+      const body = { requests: [ { image: { content: imageBase64 }, features: [ { type: 'LABEL_DETECTION', maxResults: 6 }, { type: 'TEXT_DETECTION', maxResults: 1 } ] } ] };
+      const r = await fetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      if(!r.ok) throw new Error('Vision API error: ' + r.status);
+      return await r.json();
     }
 
-    function escapeHtml(s){
-      if(!s) return '';
-      return s.replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[c]);
+    async function callOpenAI(prompt){
+      // Calls the Chat Completions API directly from the browser (demo only)
+      const endpoint = 'https://api.openai.com/v1/chat/completions';
+      const body = { model: 'gpt-4o-mini', messages: [{role:'system',content:'You are a helpful assistant.'},{role:'user',content:prompt}], temperature:0.7, max_tokens:800 };
+      const r = await fetch(endpoint, { method:'POST', headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + OPENAI_KEY }, body: JSON.stringify(body) });
+      if(!r.ok){ const txt = await r.text(); throw new Error('OpenAI error: ' + r.status + ' — ' + txt); }
+      return await r.json();
     }
-
-    // ---------------- Example server-side behavior (for your reference) ----------------
-    /*
-      Server endpoint: POST /api/vision
-      Body: { imageBase64 }
-      Server should call Google Cloud Vision API: POST https://vision.googleapis.com/v1/images:annotate?key=YOUR_KEY
-      with body:
-        { requests: [ { image: { content: imageBase64 }, features: [ { type: "LABEL_DETECTION", maxResults: 6 }, { type: "OBJECT_LOCALIZATION", maxResults: 5 } ] } ] }
-      Then extract labels and return { labels: ["pizza", "cheese"], text: "..." }
-
-      Server endpoint: POST /api/openai
-      Body: { prompt }
-      Server should call OpenAI's chat completions or responses endpoint with your API key, then return structured JSON.
-
-      Server endpoint: POST /api/places
-      Body: { lat, lng, keyword }
-      Server should call Google Places Nearby Search or Text Search using your server API key and return a reduced set of fields to the client.
-    */
   </script>
 </body>
 </html>
-
